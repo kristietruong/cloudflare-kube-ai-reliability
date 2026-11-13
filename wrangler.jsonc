@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kube-ai-reliability",
+  "main": "src/worker.ts",
+  "compatibility_date": "2025-02-20",
+  "assets": {
+    "directory": "./public"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": []
+}
