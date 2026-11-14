@@ -135,6 +135,24 @@
         gap: 10px;
       }
 
+      .file-upload-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .file-upload-row input[type="file"] {
+        max-width: 100%;
+        color: var(--muted);
+      }
+
+      .file-status {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
       input, button, textarea {
         font: inherit;
       }
@@ -158,6 +176,11 @@
         border-radius: 12px;
         font-weight: 700;
         cursor: pointer;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
       }
 
       .incident-summary {
@@ -241,8 +264,14 @@
           <div id="chatWindow" class="chat-window" aria-live="polite"></div>
           <div class="suggestions" id="suggestions"></div>
           <div class="composer">
-            <textarea id="promptInput" placeholder="Ask about CrashLoopBackOff, OOMKilled, node readiness, or failed scheduling..."></textarea>
-            <button id="submitButton">Analyze</button>
+            <textarea id="promptInput" aria-label="Kubernetes error message" placeholder="Paste an error message or describe the issue, e.g. CrashLoopBackOff, OOMKilled, ImagePullBackOff..."></textarea>
+            <button id="submitButton">Error Message Analyze</button>
+          </div>
+          <div class="file-upload-row">
+            <label for="logFileInput">Analyze a local Kubernetes log (.log)</label>
+            <input id="logFileInput" type="file" accept=".log,text/plain" />
+            <button id="analyzeFileButton" disabled>Analyze File</button>
+            <span id="uploadStatus" class="file-status" aria-live="polite">The file is analyzed in memory and discarded afterward.</span>
           </div>
         </div>
 
@@ -281,7 +310,11 @@
       const incidentSummary = document.getElementById('incidentSummary');
       const promptInput = document.getElementById('promptInput');
       const submitButton = document.getElementById('submitButton');
+      const logFileInput = document.getElementById('logFileInput');
+      const analyzeFileButton = document.getElementById('analyzeFileButton');
+      const uploadStatus = document.getElementById('uploadStatus');
       let conversationId = null;
+      let selectedLogFile = null;
 
       function escapeHtml(value) {
         return String(value).replace(/[&<>"']/g, (character) => ({
@@ -368,6 +401,15 @@
         `;
       }
 
+      async function displayAnalysis(payload) {
+        const investigation = payload.investigation;
+        conversationId = payload.conversation?.conversationId ?? conversationId;
+        appendMessage('assistant', investigation?.probableRootCause ?? 'No diagnosis returned.');
+        renderIncidentCard(investigation);
+        await loadDashboard();
+        await loadHistory();
+      }
+
       function renderSuggestions() {
         const container = document.getElementById('suggestions');
         container.innerHTML = suggestions.map((text) => `<button class="chip" data-prompt="${text}">${text}</button>`).join('');
@@ -393,7 +435,10 @@
           const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ userPrompt, conversationId })
+            body: JSON.stringify({
+              userPrompt,
+              ...(conversationId ? { conversationId } : {})
+            })
           });
 
           const payload = await response.json();
@@ -401,17 +446,55 @@
             throw new Error(payload.error || 'Unable to analyze incident.');
           }
 
-          const investigation = payload.investigation;
-          conversationId = payload.conversation?.conversationId ?? conversationId;
-          const explanation = investigation?.probableRootCause ?? 'No diagnosis returned.';
-          appendMessage('assistant', explanation);
-          renderIncidentCard(investigation);
-          await loadDashboard();
-          await loadHistory();
+          await displayAnalysis(payload);
         } catch (error) {
           appendMessage('assistant', error.message || 'The diagnosis failed.');
         }
       }
+
+      logFileInput.addEventListener('change', () => {
+        selectedLogFile = logFileInput.files?.[0] ?? null;
+        analyzeFileButton.disabled = !selectedLogFile;
+        uploadStatus.textContent = selectedLogFile
+          ? `Selected: ${selectedLogFile.name}`
+          : 'The file is analyzed in memory and discarded afterward.';
+      });
+
+      analyzeFileButton.addEventListener('click', async () => {
+        const file = selectedLogFile;
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+        if (conversationId) formData.append('conversationId', conversationId);
+        analyzeFileButton.disabled = true;
+        logFileInput.disabled = true;
+        uploadStatus.textContent = `Analyzing ${file.name} locally...`;
+        let analyzed = false;
+        appendMessage('user', `Analyze local log file: ${file.name}`);
+
+        try {
+          const response = await fetch('/api/logs/analyze', { method: 'POST', body: formData });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || 'Unable to analyze the log file.');
+          }
+
+          analyzed = true;
+          uploadStatus.textContent = `Analyzed and discarded: ${payload.fileName}`;
+          await displayAnalysis(payload);
+        } catch (error) {
+          uploadStatus.textContent = error.message || 'The file analysis failed.';
+        } finally {
+          if (analyzed) {
+            selectedLogFile = null;
+            logFileInput.value = '';
+            uploadStatus.textContent = `Analyzed and discarded: ${file.name}`;
+          }
+          logFileInput.disabled = false;
+          analyzeFileButton.disabled = !selectedLogFile;
+        }
+      });
 
       submitButton.addEventListener('click', analyzeIncident);
 promptInput.addEventListener('keydown', (event) => {

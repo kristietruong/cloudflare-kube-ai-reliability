@@ -6,6 +6,14 @@
   "assets": {
     "directory": "./public"
   },
+  // R2 is deferred until storage is enabled on the Cloudflare account.
+  // "r2_buckets": [
+  //   {
+  //     "binding": "K8S_MOCK_LOGS",
+  //     "bucket_name": "k8smocklogs",
+  //     "remote": true
+  //   }
+  // ],
   "observability": {
     "enabled": true
   },

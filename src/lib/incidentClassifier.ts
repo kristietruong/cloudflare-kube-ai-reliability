@@ -55,27 +55,31 @@ export function classifyIncident(input: { userPrompt?: string; logs?: string; ev
     };
   }
 
-  for (const scenario of sampleScenarios) {
-    const matcher = scenario.keywords.some((keyword) => normalized.includes(keyword.toLowerCase()));
-    if (matcher) {
-      return {
-        category: scenario.category,
-        severity: scenario.severity,
-        resource: input.resource ?? scenario.resource,
-        symptoms: [scenario.symptomSummary]
-      };
-    }
-  }
-
-  const detectedTags = parseKubernetesEvidence(source);
-  const matchedScenario = sampleScenarios.find((scenario) => detectedTags.includes(scenario.category));
-
+  const matchedScenarios = sampleScenarios.filter((scenario) =>
+    scenario.keywords.some((keyword) => normalized.includes(keyword.toLowerCase())),
+  );
+  const prioritizedScenario = matchedScenarios.find((scenario) =>
+    scenario.category === 'OOMKilled' || scenario.category === 'PVCIssue',
+  );
+  const matchedScenario = prioritizedScenario ?? matchedScenarios[0];
   if (matchedScenario) {
     return {
       category: matchedScenario.category,
       severity: matchedScenario.severity,
       resource: input.resource ?? matchedScenario.resource,
       symptoms: [matchedScenario.symptomSummary]
+    };
+  }
+
+  const detectedTags = parseKubernetesEvidence(source);
+  const evidenceScenario = sampleScenarios.find((scenario) => detectedTags.includes(scenario.category));
+
+  if (evidenceScenario) {
+    return {
+      category: evidenceScenario.category,
+      severity: evidenceScenario.severity,
+      resource: input.resource ?? evidenceScenario.resource,
+      symptoms: [evidenceScenario.symptomSummary]
     };
   }
 

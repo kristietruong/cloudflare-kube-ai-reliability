@@ -3,3 +3,4 @@ node_modules
 .vitest
 .env
 .DS_Store
+PROMPT_HISTORY.md

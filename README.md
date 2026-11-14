@@ -49,12 +49,16 @@ npm run dev
 - The app validates user input and falls back to deterministic local diagnosis when no Workers AI binding is configured.
 - Sample scenarios cover CrashLoopBackOff, OOMKilled, ImagePullBackOff, PendingPods, FailedScheduling, NodeNotReady, ProbeFailures, PVC issues, and resource exhaustion.
 - The current storage adapter and investigation workflow are in-memory/local demo implementations. Data is lost when the Worker isolate restarts; Cloudflare D1 and durable Workflows are not configured yet.
-- Local development does not deploy resources or incur Cloudflare charges. A real Workers AI binding requires a Cloudflare account and may incur usage charges.
+- Local `.log` files are sent directly to the Worker for analysis and are not written to R2 or disk. The request is limited to 64 KB; the Worker releases the file after the request finishes. The diagnosis and bounded evidence snippets (up to 500 characters per log line) still appear in the in-memory investigation history.
+- The R2 binding and local-to-R2 upload feature are commented out until R2 is enabled on the Cloudflare account. No R2 bucket access or charges are involved in this flow.
+- A real Workers AI binding is not configured; incident analysis currently uses the deterministic local diagnostic fallback.
+- Sample logs for local analysis are in [`k8smocklog/`](./k8smocklog/).
 
 ## Key routes
 
 - `GET /api/health` for service health
 - `POST /api/chat` for a new incident investigation
+- `POST /api/logs/analyze` to analyze a local `.log` file sent as multipart form data; the file is not stored
 - `GET /api/investigations` for incident history
 - `GET /api/investigations/:id` for a specific incident
 - `GET /api/dashboard` for metrics summary

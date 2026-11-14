@@ -24,12 +24,13 @@ export interface InvestigationInput {
   conversationId?: string;
 }
 
-export function validateIncidentInput(input: Partial<InvestigationInput>): InvestigationInput {
-  if (!input || typeof input !== 'object') {
+export function validateIncidentInput(input: unknown): InvestigationInput {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error('Incident input must be an object.');
   }
 
-  const prompt = typeof input.userPrompt === 'string' ? input.userPrompt.trim() : '';
+  const fields = input as Record<string, unknown>;
+  const prompt = typeof fields.userPrompt === 'string' ? fields.userPrompt.trim() : '';
   if (!prompt) {
     throw new Error('A user prompt is required to begin an investigation.');
   }
@@ -39,8 +40,11 @@ export function validateIncidentInput(input: Partial<InvestigationInput>): Inves
   }
 
   const optionalText = (key: 'logs' | 'events' | 'resource' | 'conversationId', maxLength: number): string | undefined => {
-    const value = input[key];
-    if (value !== undefined && typeof value !== 'string') {
+    const value = fields[key];
+    if (value === null || value === undefined) {
+      return undefined;
+    }
+    if (typeof value !== 'string') {
       throw new Error(`${key} must be a string.`);
     }
     if (typeof value === 'string' && value.length > maxLength) {
@@ -51,7 +55,7 @@ export function validateIncidentInput(input: Partial<InvestigationInput>): Inves
 
   return {
     userPrompt: prompt,
-    logs: optionalText('logs', 20_000) ?? '',
+    logs: optionalText('logs', 64_000) ?? '',
     events: optionalText('events', 20_000) ?? '',
     resource: optionalText('resource', 256),
     conversationId: optionalText('conversationId', 128),
@@ -75,6 +79,7 @@ function buildEvidence(input: InvestigationInput, classification: Classification
       .split(/\n+/)
       .map((line) => line.trim())
       .filter(Boolean)
+      .map((line) => line.slice(0, 500))
       .slice(0, 5);
     logLines.forEach((line) => evidence.add(`Supplied log: ${line}`));
   }
@@ -84,6 +89,7 @@ function buildEvidence(input: InvestigationInput, classification: Classification
       .split(/\n+/)
       .map((line) => line.trim())
       .filter(Boolean)
+      .map((line) => line.slice(0, 500))
       .slice(0, 5);
     eventLines.forEach((line) => evidence.add(`Supplied event: ${line}`));
   }

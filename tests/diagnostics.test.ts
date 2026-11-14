@@ -50,8 +50,17 @@ describe('diagnostic parsing and validation', () => {
     expect(() => validateIncidentInput({ userPrompt: '' })).toThrow('A user prompt is required');
   });
 
+  it('accepts a null conversation ID as a new conversation', () => {
+    const input = validateIncidentInput({
+      userPrompt: 'Why is my pod in CrashLoopBackOff?',
+      conversationId: null,
+    });
+
+    expect(input.conversationId).toBeUndefined();
+  });
+
   it('rejects oversized log input', () => {
-    expect(() => validateIncidentInput({ userPrompt: 'Investigate this pod', logs: 'x'.repeat(20_001) }))
+    expect(() => validateIncidentInput({ userPrompt: 'Investigate this pod', logs: 'x'.repeat(64_001) }))
       .toThrow('logs is too long');
   });
 
@@ -62,6 +71,18 @@ describe('diagnostic parsing and validation', () => {
       'No Kubernetes logs or events were supplied; diagnosis is based on the user-reported issue only.',
     );
     expect(diagnosis.supportingEvidence.some((item) => item.includes('kubectl logs'))).toBe(false);
+  });
+
+  it('keeps only bounded evidence snippets from uploaded log lines', () => {
+    const diagnosis = buildIncidentAnalysis({
+      userPrompt: 'Investigate this log',
+      logs: `CrashLoopBackOff ${'x'.repeat(2_000)}`,
+    });
+    const logEvidence = diagnosis.supportingEvidence.find((item) => item.startsWith('Supplied log: '));
+
+    expect(logEvidence).toBeDefined();
+    expect(logEvidence?.length).toBeLessThanOrEqual('Supplied log: '.length + 500);
+    expect(logEvidence).not.toContain('x'.repeat(1_000));
   });
 });
 
