@@ -1,0 +1,5 @@
+2026-11-14T19:02:11Z kube-controller-manager level=WARNING pvc=postgres-data-0 ns=database ProvisioningFailed
+2026-11-14T19:02:11Z kube-controller-manager level=WARNING pvc=postgres-data-0 detail="storageclass.storage.k8s.io \"fast-ssd\" not found"
+2026-11-14T19:02:12Z kube-scheduler level=WARNING pod=postgres-0 ns=database PodScheduled=false
+2026-11-14T19:02:12Z kube-scheduler level=WARNING pod=postgres-0 detail="pod is waiting for unbound immediate PersistentVolumeClaims"
+2026-11-14T19:03:12Z kube-controller-manager level=WARNING pvc=postgres-data-0 status=Pending
