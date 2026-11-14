@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
     <title>Kubernetes AI Reliability Copilot</title>
     <style>
       :root {
@@ -280,6 +281,17 @@
       const incidentSummary = document.getElementById('incidentSummary');
       const promptInput = document.getElementById('promptInput');
       const submitButton = document.getElementById('submitButton');
+      let conversationId = null;
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (character) => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        })[character]);
+      }
 
       function appendMessage(role, text) {
         const bubble = document.createElement('div');
@@ -310,9 +322,9 @@
         historyList.innerHTML = items.length
           ? items.slice(0, 8).map((item) => `
               <div class="history-item">
-                <strong>${item.incidentCategory}</strong>
-                <div style="color: var(--muted); margin-top: 6px;">${item.affectedResource}</div>
-                <div style="margin-top: 8px; color: var(--muted);">${item.summary}</div>
+                  <strong>${escapeHtml(item.incidentCategory)}</strong>
+                  <div style="color: var(--muted); margin-top: 6px;">${escapeHtml(item.affectedResource)}</div>
+                  <div style="margin-top: 8px; color: var(--muted);">${escapeHtml(item.summary)}</div>
               </div>
             `).join('')
           : '<div class="history-item">No investigations yet.</div>';
@@ -327,30 +339,30 @@
         const severityClass = `severity-${incident.severity}`;
         incidentSummary.innerHTML = `
           <div class="incident-summary">
-            <div><span class="severity-pill ${severityClass}">${incident.severity}</span></div>
-            <h3 style="margin: 14px 0 6px;">${incident.incidentCategory}</h3>
-            <div style="color: var(--muted);">${incident.affectedResource}</div>
+            <div><span class="severity-pill ${severityClass}">${escapeHtml(incident.severity)}</span></div>
+            <h3 style="margin: 14px 0 6px;">${escapeHtml(incident.incidentCategory)}</h3>
+            <div style="color: var(--muted);">${escapeHtml(incident.affectedResource)}</div>
             <h4 style="margin-top: 16px;">Observed symptoms</h4>
             <ul class="check-list">
-              ${(incident.observedSymptoms ?? []).map((item) => `<li>${item}</li>`).join('')}
+              ${(incident.observedSymptoms ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
             </ul>
             <h4 style="margin-top: 16px;">Probable root cause</h4>
-            <p>${incident.probableRootCause}</p>
+            <p>${escapeHtml(incident.probableRootCause)}</p>
             <h4 style="margin-top: 16px;">Supporting evidence</h4>
             <ul class="meta-list">
-              ${(incident.supportingEvidence ?? []).map((item) => `<li>${item}</li>`).join('')}
+              ${(incident.supportingEvidence ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
             </ul>
             <h4 style="margin-top: 16px;">Recommended steps</h4>
             <ul class="check-list">
-              ${(incident.recommendedTroubleshootingSteps ?? []).map((item) => `<li>${item}</li>`).join('')}
+              ${(incident.recommendedTroubleshootingSteps ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
             </ul>
             <h4 style="margin-top: 16px;">kubectl commands</h4>
             <ul class="command-list">
-              ${(incident.suggestedKubectlCommands ?? []).map((item) => `<li><code>${item}</code></li>`).join('')}
+              ${(incident.suggestedKubectlCommands ?? []).map((item) => `<li><code>${escapeHtml(item)}</code></li>`).join('')}
             </ul>
             <h4 style="margin-top: 16px;">Preventive recommendations</h4>
             <ul class="check-list">
-              ${(incident.preventiveRecommendations ?? []).map((item) => `<li>${item}</li>`).join('')}
+              ${(incident.preventiveRecommendations ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
             </ul>
           </div>
         `;
@@ -381,7 +393,7 @@
           const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ userPrompt })
+            body: JSON.stringify({ userPrompt, conversationId })
           });
 
           const payload = await response.json();
@@ -390,6 +402,7 @@
           }
 
           const investigation = payload.investigation;
+          conversationId = payload.conversation?.conversationId ?? conversationId;
           const explanation = investigation?.probableRootCause ?? 'No diagnosis returned.';
           appendMessage('assistant', explanation);
           renderIncidentCard(investigation);

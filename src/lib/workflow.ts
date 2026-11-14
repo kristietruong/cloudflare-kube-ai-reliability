@@ -1,4 +1,4 @@
-import { buildIncidentAnalysis, validateIncidentInput, type IncidentDiagnosis, type InvestigationInput } from './diagnosticEngine';
+import { validateIncidentInput, type IncidentDiagnosis, type InvestigationInput } from './diagnosticEngine';
 import { generateDiagnosis } from './aiService';
 import { getConversationContext, saveConversationTurn, saveInvestigation, type InvestigationRecord } from './storage';
 
@@ -28,7 +28,8 @@ export async function runInvestigationWorkflow(input: InvestigationInput, env?: 
     { stage: 'persist', status: 'completed' as const, step: 'Investigation persisted for future retrieval' },
   ];
 
-  const localDiagnosis = await generateDiagnosis(normalizedInput, env);
+  const previousContext = await getConversationContext(conversationId);
+  const localDiagnosis = await generateDiagnosis(normalizedInput, env, previousContext);
   const evidenceSummary = localDiagnosis.supportingEvidence.join(' | ');
 
   const record: InvestigationRecord = {
@@ -41,14 +42,14 @@ export async function runInvestigationWorkflow(input: InvestigationInput, env?: 
   await saveInvestigation(record);
   await saveConversationTurn(conversationId, normalizedInput.userPrompt, record.probableRootCause);
 
-  const previousContext = await getConversationContext(conversationId);
+  const updatedContext = await getConversationContext(conversationId);
 
   return {
     workflow,
     investigation: record,
     conversation: {
       conversationId,
-      previousContext,
+      previousContext: updatedContext,
     },
   };
 }

@@ -1,5 +1,4 @@
-import { buildIncidentAnalysis, validateIncidentInput } from './lib/diagnosticEngine';
-import { generateDiagnosis } from './lib/aiService';
+import { validateIncidentInput } from './lib/diagnosticEngine';
 import { getDashboardStats, getInvestigationById, listRecentInvestigations, runInvestigationWorkflow } from './lib/workflow';
 
 type RequestBody = {
@@ -60,9 +59,22 @@ export default {
     }
 
     if (url.pathname === '/api/chat' && request.method === 'POST') {
+      let body: RequestBody;
       try {
-        const body = (await request.json()) as RequestBody;
-        const normalized = validateIncidentInput(body);
+        body = (await request.json()) as RequestBody;
+      } catch {
+        return rejectInvalidInput('Request body must contain valid JSON.', 400);
+      }
+
+      let normalized: ReturnType<typeof validateIncidentInput>;
+      try {
+        normalized = validateIncidentInput(body);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid incident input.';
+        return rejectInvalidInput(message, 400);
+      }
+
+      try {
         const result = await runInvestigationWorkflow(normalized, env);
         return jsonResponse({
           message: 'Investigation completed.',
@@ -71,8 +83,8 @@ export default {
           conversation: result.conversation,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Request failed.';
-        return rejectInvalidInput(message, 400);
+        console.error('Incident investigation failed.', error);
+        return jsonResponse({ error: 'The incident investigation could not be completed.' }, 500);
       }
     }
 

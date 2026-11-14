@@ -4,6 +4,7 @@ import { classifyIncident, parseKubernetesEvidence } from '../src/lib/incidentCl
 import { buildIncidentAnalysis, validateIncidentInput } from '../src/lib/diagnosticEngine';
 import { runInvestigationWorkflow } from '../src/lib/workflow';
 import { getConversationContext, saveConversationTurn } from '../src/lib/storage';
+import { generateDiagnosis } from '../src/lib/aiService';
 
 describe('kubernetes incident classification', () => {
   it('detects CrashLoopBackOff from a pod description', () => {
@@ -48,6 +49,20 @@ describe('diagnostic parsing and validation', () => {
   it('rejects malformed input', () => {
     expect(() => validateIncidentInput({ userPrompt: '' })).toThrow('A user prompt is required');
   });
+
+  it('rejects oversized log input', () => {
+    expect(() => validateIncidentInput({ userPrompt: 'Investigate this pod', logs: 'x'.repeat(20_001) }))
+      .toThrow('logs is too long');
+  });
+
+  it('does not present sample scenario text as observed evidence', () => {
+    const diagnosis = buildIncidentAnalysis({ userPrompt: 'Why is my pod in CrashLoopBackOff?' });
+
+    expect(diagnosis.supportingEvidence).toContain(
+      'No Kubernetes logs or events were supplied; diagnosis is based on the user-reported issue only.',
+    );
+    expect(diagnosis.supportingEvidence.some((item) => item.includes('kubectl logs'))).toBe(false);
+  });
 });
 
 describe('workflow execution and conversation persistence', () => {
@@ -70,5 +85,35 @@ describe('workflow execution and conversation persistence', () => {
     const history = await getConversationContext(conversationId);
     expect(history.length).toBeGreaterThan(0);
     expect(history.at(-1)?.prompt).toContain('Why is the pod restarting?');
+  });
+
+  it('falls back safely when the model returns invalid category and severity values', async () => {
+    const diagnosis = await generateDiagnosis(
+      { userPrompt: 'Why is my pod in CrashLoopBackOff?' },
+      {
+        AI: {
+          run: async () => ({
+            response: JSON.stringify({
+              incidentCategory: 'MadeUpCategory',
+              severity: 'urgent',
+              confidence: 5,
+            }),
+          }),
+        },
+      },
+    );
+
+    expect(diagnosis.incidentCategory).toBe('CrashLoopBackOff');
+    expect(diagnosis.severity).toBe('high');
+    expect(diagnosis.confidence).toBe(1);
+  });
+
+  it('uses the deterministic diagnosis when the model call fails', async () => {
+    const diagnosis = await generateDiagnosis(
+      { userPrompt: 'Why is my pod OOMKilled?' },
+      { AI: { run: async () => { throw new Error('model unavailable'); } } },
+    );
+
+    expect(diagnosis.incidentCategory).toBe('OOMKilled');
   });
 });

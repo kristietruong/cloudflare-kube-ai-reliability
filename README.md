@@ -13,6 +13,8 @@ A Cloudflare Workers-based Kubernetes reliability demo built for a platform engi
 
 ## Local setup
 
+Run these commands from the project directory (`C:\Users\krist\DevBox\cloudflare\kube-ai-reliability` in this workspace):
+
 1. Install Node.js 20+ and npm.
 2. Install dependencies:
    ```bash
@@ -22,17 +24,32 @@ A Cloudflare Workers-based Kubernetes reliability demo built for a platform engi
    ```bash
    npm test
    ```
-4. Start the local worker:
+4. Check TypeScript:
+   ```bash
+   npm run typecheck
+   ```
+5. Start the local Worker:
    ```bash
    npm run dev
    ```
-5. Open the local URL printed by Wrangler and use the dashboard to investigate sample Kubernetes incidents.
+6. Open [http://localhost:8787](http://localhost:8787) (or the URL printed by Wrangler) and use the dashboard to investigate sample Kubernetes incidents.
+
+On Windows PowerShell, start with:
+
+```powershell
+cd C:\Users\krist\DevBox\cloudflare\kube-ai-reliability
+npm install
+npm test
+npm run typecheck
+npm run dev
+```
 
 ## Production notes
 
-- The app validates user input and falls back to deterministic local diagnosis if Workers AI is unavailable.
+- The app validates user input and falls back to deterministic local diagnosis when no Workers AI binding is configured.
 - Sample scenarios cover CrashLoopBackOff, OOMKilled, ImagePullBackOff, PendingPods, FailedScheduling, NodeNotReady, ProbeFailures, PVC issues, and resource exhaustion.
-- Investigation results are persisted in memory for local demonstration and can be connected to Cloudflare D1 when configured.
+- The current storage adapter and investigation workflow are in-memory/local demo implementations. Data is lost when the Worker isolate restarts; Cloudflare D1 and durable Workflows are not configured yet.
+- Local development does not deploy resources or incur Cloudflare charges. A real Workers AI binding requires a Cloudflare account and may incur usage charges.
 
 ## Key routes
 

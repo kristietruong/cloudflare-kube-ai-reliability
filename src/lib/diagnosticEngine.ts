@@ -38,12 +38,23 @@ export function validateIncidentInput(input: Partial<InvestigationInput>): Inves
     throw new Error('The incident description is too long. Keep it under 2000 characters.');
   }
 
+  const optionalText = (key: 'logs' | 'events' | 'resource' | 'conversationId', maxLength: number): string | undefined => {
+    const value = input[key];
+    if (value !== undefined && typeof value !== 'string') {
+      throw new Error(`${key} must be a string.`);
+    }
+    if (typeof value === 'string' && value.length > maxLength) {
+      throw new Error(`${key} is too long. Keep it under ${maxLength} characters.`);
+    }
+    return value;
+  };
+
   return {
     userPrompt: prompt,
-    logs: typeof input.logs === 'string' ? input.logs : '',
-    events: typeof input.events === 'string' ? input.events : '',
-    resource: typeof input.resource === 'string' ? input.resource : undefined,
-    conversationId: typeof input.conversationId === 'string' ? input.conversationId : undefined,
+    logs: optionalText('logs', 20_000) ?? '',
+    events: optionalText('events', 20_000) ?? '',
+    resource: optionalText('resource', 256),
+    conversationId: optionalText('conversationId', 128),
   };
 }
 
@@ -53,11 +64,11 @@ function buildSuggestedCommands(category: IncidentCategory): string[] {
 }
 
 function buildEvidence(input: InvestigationInput, classification: ClassificationResult): string[] {
-  const source = [input.userPrompt, input.logs ?? '', input.events ?? ''].join('\n');
-  const evidence = new Set<string>([source.slice(0, 180)]);
+  const evidence = new Set<string>();
 
-  const candidate = sampleScenarios.find((scenario) => scenario.category === classification.category) ?? sampleScenarios[0];
-  candidate.evidence.forEach((item) => evidence.add(item));
+  if (input.userPrompt.trim()) {
+    evidence.add(`User-reported issue: ${input.userPrompt.trim().slice(0, 180)}`);
+  }
 
   if (input.logs) {
     const logLines = input.logs
@@ -65,7 +76,7 @@ function buildEvidence(input: InvestigationInput, classification: Classification
       .map((line) => line.trim())
       .filter(Boolean)
       .slice(0, 5);
-    logLines.forEach((line) => evidence.add(line));
+    logLines.forEach((line) => evidence.add(`Supplied log: ${line}`));
   }
 
   if (input.events) {
@@ -74,7 +85,11 @@ function buildEvidence(input: InvestigationInput, classification: Classification
       .map((line) => line.trim())
       .filter(Boolean)
       .slice(0, 5);
-    eventLines.forEach((line) => evidence.add(line));
+    eventLines.forEach((line) => evidence.add(`Supplied event: ${line}`));
+  }
+
+  if (!input.logs && !input.events) {
+    evidence.add('No Kubernetes logs or events were supplied; diagnosis is based on the user-reported issue only.');
   }
 
   return Array.from(evidence).slice(0, 8);
