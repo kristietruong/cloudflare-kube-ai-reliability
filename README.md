@@ -13,7 +13,7 @@ A Cloudflare Workers-based Kubernetes reliability demo built for a platform engi
 
 ## Local setup
 
-Run these commands from the project directory (`C:\Users\krist\DevBox\cloudflare\kube-ai-reliability` in this workspace):
+Run these commands from the project directory 
 
 1. Install Node.js 20+ and npm.
 2. Install dependencies:
@@ -37,7 +37,6 @@ Run these commands from the project directory (`C:\Users\krist\DevBox\cloudflare
 On Windows PowerShell, start with:
 
 ```powershell
-cd C:\Users\krist\DevBox\cloudflare\kube-ai-reliability
 npm install
 npm test
 npm run typecheck
@@ -55,7 +54,7 @@ npm run dev
 - Sample logs for local analysis are in [`k8smocklog/`](./k8smocklog/).
 
 ## Key routes
-
+s
 - `GET /api/health` for service health
 - `POST /api/chat` for a new incident investigation
 - `POST /api/logs/analyze` to analyze a local `.log` file sent as multipart form data; the file is not stored

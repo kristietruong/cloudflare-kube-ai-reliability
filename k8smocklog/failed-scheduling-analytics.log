@@ -1,5 +1,0 @@
-2026-11-14T18:30:00Z kube-scheduler level=WARNING pod=analytics-6c8c9d4db7-8szxk ns=batch FailedScheduling
-2026-11-14T18:30:00Z kube-scheduler level=WARNING pod=analytics-6c8c9d4db7-8szxk detail="0/5 nodes are available: 5 Insufficient cpu."
-2026-11-14T18:30:01Z kube-scheduler level=INFO pod=analytics-6c8c9d4db7-8szxk preemption="No preemption victims found for incoming pod."
-2026-11-14T18:30:31Z kube-scheduler level=WARNING pod=analytics-6c8c9d4db7-8szxk FailedScheduling
-2026-11-14T18:30:31Z kube-scheduler level=WARNING pod=analytics-6c8c9d4db7-8szxk detail="0/5 nodes are available: 3 Insufficient memory, 2 node(s) didn't match Pod's node affinity."
